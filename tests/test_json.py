@@ -799,6 +799,38 @@ def test_all_default_values():
     assert read_record["record"] == default_record
 
 
+@pytest.mark.parametrize(
+    "field_type, default",
+    [
+        ({"type": "array", "items": "int"}, [1, 2]),
+        ({"type": "map", "values": "int"}, {"a": 3}),
+        (
+            {
+                "type": "record",
+                "name": "Nested",
+                "fields": [
+                    {"name": "values", "type": {"type": "array", "items": "int"}},
+                ],
+            },
+            {"values": [1, 2]},
+        ),
+        ([{"type": "array", "items": "int"}, "null"], [1, 2]),
+    ],
+)
+def test_mutable_defaults_are_reusable(field_type, default):
+    schema = {
+        "type": "record",
+        "name": "Example",
+        "fields": [{"name": "value", "type": field_type, "default": default}],
+    }
+    original_schema = deepcopy(schema)
+    expected = [{"value": deepcopy(default)}, {"value": deepcopy(default)}]
+
+    assert list(json_reader(StringIO("{}\n{}\n"), schema)) == expected
+    assert schema == original_schema
+    assert list(json_reader(StringIO("{}\n{}\n"), schema)) == expected
+
+
 def test_default_value_missing():
     """https://github.com/fastavro/fastavro/issues/485"""
     schema = {
